@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# orclife — orchestrated development lifecycle for Claude Code sessions. Project config: <repo>/.orclife/config.json
+# orca-lc — orchestrated development lifecycle for Claude Code sessions. Project config: <repo>/.orca/config.json
 set -uo pipefail
 
-USAGE='usage: orclife <command> [args]
+USAGE='usage: orca-lc <command> [args]
   context                          state for this session (SessionStart runs it)
   gate [--inline]                  run the project gate, write the marker
   gate-fresh                       exit 0 when the marker matches the tree
@@ -22,25 +22,25 @@ USAGE='usage: orclife <command> [args]
   worktree up <ticket> [branch] [--stack] | down <ticket> [--force]
   role start <ticket> <role> < body   tab + named agent + handoff (body on stdin) + first prompt
   role owner <ticket> [--set <role>]  the role that owns the ticket now
-  config <key>                     read a key from .orclife/config.json'
+  config <key>                     read a key from .orca/config.json'
 
-die() { echo "orclife: $*" >&2; exit 1; }
-usage() { echo "orclife: $1" >&2; echo "$USAGE" >&2; exit 2; }
+die() { echo "orca-lc: $*" >&2; exit 1; }
+usage() { echo "orca-lc: $1" >&2; echo "$USAGE" >&2; exit 2; }
 need() { [ -n "${2:-}" ] || usage "missing <$1>"; }
 root() { git rev-parse --show-toplevel 2>/dev/null; }
 gitdir() { git rev-parse --git-dir 2>/dev/null; }
-cfgfile() { local r; r=$(root) || return 1; [ -f "$r/.orclife/config.json" ] && echo "$r/.orclife/config.json"; }
+cfgfile() { local r; r=$(root) || return 1; [ -f "$r/.orca/config.json" ] && echo "$r/.orca/config.json"; }
 cfg() { local f; f=$(cfgfile) || { echo "${2:-}"; return; }; local v; v=$(jq -r "$1 // empty" "$f" 2>/dev/null); echo "${v:-${2:-}}"; }
-shared() { cfg '.sharedDir' "$(root)/.orclife"; }
+shared() { cfg '.sharedDir' "$(root)/.orca"; }
 ticket() { local p="${1:-$PWD}" pat; pat=$(cfg '.ticketPattern' '[A-Z]+-[0-9]+'); { echo "$p"; git branch --show-current 2>/dev/null; } | grep -oiE "$pat" | head -1 | tr 'A-Z' 'a-z'; }
 inherdr() { [ "${HERDR_ENV:-}" = 1 ]; }
 tree_sig() { printf '%s %s\n' "$(git rev-parse HEAD)" "$( { git diff HEAD; git ls-files --others --exclude-standard | sort; } | sha1sum | cut -c1-12)"; }
-marker() { echo "$(gitdir)/orclife-gate-ok"; }
-idfile() { echo "$(gitdir)/orclife-session-${HERDR_PANE_ID:-nopane}.json"; }
+marker() { echo "$(gitdir)/orca-gate-ok"; }
+idfile() { echo "$(gitdir)/orca-session-${HERDR_PANE_ID:-nopane}.json"; }
 
 # ---- identity: written once by `name --set` (SessionStart), read everywhere else
 role_from_tab() {
-  [ -n "${ORCLIFE_ROLE:-}" ] && { echo "$ORCLIFE_ROLE"; return; } # set by `role start` on the tab it creates
+  [ -n "${ORCA_ROLE:-}" ] && { echo "$ORCA_ROLE"; return; } # set by `role start` on the tab it creates
   inherdr || { echo session; return; }
   local label; label=$(herdr tab list --workspace "$HERDR_WORKSPACE_ID" 2>/dev/null | jq -r --arg t "$HERDR_TAB_ID" '.result.tabs[] | select(.tab_id==$t) | .label // .title // ""')
   local f; f=$(cfgfile) || { echo session; return; }
@@ -74,26 +74,26 @@ cmd_gate_fresh() { [ -f "$(marker)" ] && [ "$(cat "$(marker)")" = "$(tree_sig)" 
 
 load_env() { [ -f .env ] && { set -a; . ./.env; set +a; }
   local ec; ec=$(cfg '.envCommand'); [ -n "$ec" ] || return 0
-  local kv; kv=$(bash -c "$ec" 2>/dev/null); [ -n "$kv" ] && { set -a; eval "$kv"; set +a; echo "orclife: env: $kv"; }; }
+  local kv; kv=$(bash -c "$ec" 2>/dev/null); [ -n "$kv" ] && { set -a; eval "$kv"; set +a; echo "orca-lc: env: $kv"; }; }
 
 cmd_gate() {
   local r; r=$(root) || die "not in a repo"
-  local g; g=$(cfg '.gate'); [ -n "$g" ] || die "no gate in .orclife/config.json"
+  local g; g=$(cfg '.gate'); [ -n "$g" ] || die "no gate in .orca/config.json"
   if [ "${1:-}" != "--inline" ] && inherdr; then
-    local old; old="$(gitdir)/orclife-gate-pane"; [ -f "$old" ] && { herdr pane close "$(cat "$old")" >/dev/null 2>&1; rm -f "$old"; }
+    local old; old="$(gitdir)/orca-gate-pane"; [ -f "$old" ] && { herdr pane close "$(cat "$old")" >/dev/null 2>&1; rm -f "$old"; }
     local pane; pane=$(herdr pane split --current --direction down --cwd "$r" --no-focus 2>/dev/null | jq -r '.result.pane.pane_id // empty')
-    if [ -z "$pane" ]; then echo "orclife: no pane available, running inline"; else
-      herdr pane run "$pane" "orclife gate --inline" >/dev/null
-      herdr pane wait-output "$pane" --regex 'ORCLIFE_GATE_(PASS|FAIL)$' --timeout 1200000 >/dev/null
+    if [ -z "$pane" ]; then echo "orca-lc: no pane available, running inline"; else
+      herdr pane run "$pane" "orca-lc gate --inline" >/dev/null
+      herdr pane wait-output "$pane" --regex 'ORCA_GATE_(PASS|FAIL)$' --timeout 1200000 >/dev/null
       herdr pane read "$pane" --source recent-unwrapped --lines 200 | tail -60
-      if cmd_gate_fresh; then herdr pane close "$pane" >/dev/null; echo "orclife: gate PASS, pane closed"; return 0; fi
-      echo "$pane" > "$old"; echo "orclife: gate FAIL, pane $pane left open (closed automatically on the next run)"; return 1
+      if cmd_gate_fresh; then herdr pane close "$pane" >/dev/null; echo "orca-lc: gate PASS, pane closed"; return 0; fi
+      echo "$pane" > "$old"; echo "orca-lc: gate FAIL, pane $pane left open (closed automatically on the next run)"; return 1
     fi
   fi
   cd "$r" || exit 1; rm -f "$(marker)"; load_env
-  echo "orclife: gate on $(git branch --show-current) @ $(git rev-parse --short HEAD)"
-  if bash -c "$g"; then tree_sig > "$(marker)"; echo "ORCLIFE_GATE_PASS"; return 0; fi
-  echo "ORCLIFE_GATE_FAIL"; return 1
+  echo "orca-lc: gate on $(git branch --show-current) @ $(git rev-parse --short HEAD)"
+  if bash -c "$g"; then tree_sig > "$(marker)"; echo "ORCA_GATE_PASS"; return 0; fi
+  echo "ORCA_GATE_FAIL"; return 1
 }
 
 base_ref() { local b; b=$(cfg '.baseBranch' main); git merge-base HEAD "$b" 2>/dev/null || git rev-parse HEAD~1; }
@@ -105,16 +105,16 @@ ensure_graphs() { # codegraph and codebase-memory indexes for this checkout, whe
 }
 cbm_project() { echo "$PWD" | sed 's|^/||; s|/|-|g'; }
 cmd_test_affected() {
-  local tc; tc=$(cfg '.testCommand'); [ -n "$tc" ] || die "set testCommand in .orclife/config.json"
+  local tc; tc=$(cfg '.testCommand'); [ -n "$tc" ] || die "set testCommand in .orca/config.json"
   has codegraph || die "test-affected needs codegraph"
   local r; r=$(root) || die "not in a repo"; cd "$r" || exit 1; load_env; ensure_graphs
   local files; files=$( { git diff --name-only "$(base_ref)"; git ls-files --others --exclude-standard; } | sort -u | codegraph affected --stdin --quiet 2>/dev/null)
-  [ -n "$files" ] || { echo "orclife: no affected test files"; return 0; }
+  [ -n "$files" ] || { echo "orca-lc: no affected test files"; return 0; }
   echo "$files"; bash -c "$tc $(echo "$files" | tr '\n' ' ')"
 }
 cmd_evidence() {
   local r; r=$(root) || die "not in a repo"; cd "$r" || exit 1; ensure_graphs
-  local base="${1:-$(cfg '.baseBranch' main)}" out; out="$(gitdir)/orclife-evidence.md"
+  local base="${1:-$(cfg '.baseBranch' main)}" out; out="$(gitdir)/orca-evidence.md"
   { echo "# Change evidence — $(git branch --show-current) vs $base @ $(date -Is)"; echo
     echo "## Blast radius (codebase-memory detect_changes, inbound)"; echo '```'
     if has codebase-memory-mcp; then codebase-memory-mcp cli detect_changes --project "$(cbm_project)" --base-branch "$base" --limit 20 2>/dev/null | awk '/^changed_files:/{skip=1; print; next} /^seed_symbols:/{skip=0} !skip'
@@ -129,7 +129,7 @@ cmd_evidence() {
 repo_wts() { git worktree list --porcelain | awk '/^worktree /{print $2}' | jq -R . | jq -s .; }
 agents_json() { herdr agent list 2>/dev/null | jq -c --argjson wts "$(repo_wts)" '[.result.agents[] | select(.cwd as $c | $wts | index($c)) | {name:(.agent_name // .name // ""), status:.agent_status, cwd:.cwd, dir:(.cwd|split("/")|last), tab:.tab_id, pane:.pane_id, sid:(.agent_session.value // ""), title:(.terminal_title_stripped // "")}]'; }
 cmd_peers() {
-  inherdr || { echo "orclife: not inside herdr"; return 0; }
+  inherdr || { echo "orca-lc: not inside herdr"; return 0; }
   agents_json | jq -r --arg me "${HERDR_PANE_ID:-}" '.[] | (if .pane==$me then "*" else " " end) + " " + (if .sid=="" then "pane:"+.pane else .sid[0:8] end) + "  " + (.name|if .=="" then "-" else . end) + "  " + .status + "  " + .dir + "  " + .title'
 }
 resolve_target() { # -> one agent json or list on stderr
@@ -145,14 +145,14 @@ resolve_target() { # -> one agent json or list on stderr
     *) # a ticket with several sessions goes to its owner
        local o; [ -z "$role" ] && o=$(cat "$(owner_file "$t")" 2>/dev/null)
        if [ -n "${o:-}" ]; then local oh; oh=$(jq -c --arg r "$o" '[.[] | select(.name|endswith("-"+$r))]' <<<"$hit"); [ "$(jq length <<<"$oh")" = 1 ] && { jq -c '.[0]' <<<"$oh"; return 0; }; fi
-       echo "orclife: '$t' matches several sessions, use a session id or --role:" >&2; jq -r '.[] | "  " + (if .sid=="" then "pane:"+.pane else .sid[0:8] end) + "  " + .name + "  " + .dir + "  " + .title' <<<"$hit" >&2; return 2;;
+       echo "orca-lc: '$t' matches several sessions, use a session id or --role:" >&2; jq -r '.[] | "  " + (if .sid=="" then "pane:"+.pane else .sid[0:8] end) + "  " + .name + "  " + .dir + "  " + .title' <<<"$hit" >&2; return 2;;
   esac
 }
 cmd_notify() {
   need target "${1:-}"; local target="$1"; shift; local role=""
   [ "${1:-}" = "--role" ] && { role="$2"; shift 2; }
   need text "${1:-}"; local text="$*"
-  local hdr="[orclife from $(me_tag)]"
+  local hdr="[orca from $(me_tag)]"
   if inherdr; then
     local hit rc; hit=$(resolve_target "$target" "$role"); rc=$?
     [ $rc = 2 ] && exit 2
@@ -185,7 +185,7 @@ cmd_handoff() {
     write) need ticket "${2:-}"; need role "${3:-}"; local t="$2" r="$3"; mkdir -p "$d/$t"; local f="$d/$t/$r-$(date +%F).md"; [ -e "$f" ] && f="$d/$t/$r-$(date +%F-%H%M).md"
            printf -- '---\nticket: %s\nrole: %s\nwritten: %s\nby: %s\nconsumed-by:\n---\n\n' "$t" "$r" "$(date -Is)" "$(me id)" > "$f"
            # The role's boundaries come from the skill's Roles section, so a session gets them even when the writer forgets.
-           local b; b=$(awk -v h="### $r" '$0==h{on=1;next} on&&/^#/{exit} on&&NF' "$(dirname "$(readlink -f "$0")")/../skills/orclife/SKILL.md" 2>/dev/null)
+           local b; b=$(awk -v h="### $r" '$0==h{on=1;next} on&&/^#/{exit} on&&NF' "$(dirname "$(readlink -f "$0")")/../skills/orca/SKILL.md" 2>/dev/null)
            [ -n "$b" ] && printf '## Role: %s\n%s\nPush, PRs, and tracker writes happen only when the user asks for them in the current turn.\n\n' "$r" "$b" >> "$f"
            # Apply and review work against the ticket's own stack; name its ports so nobody guesses.
            case "$r" in apply|review) local sp; sp=$(stack_ports "$t"); [ -n "$sp" ] && printf 'Stack ports: %s\n\n' "$(echo $sp)" >> "$f";; esac
@@ -229,7 +229,7 @@ ghx() { if command -v direnv >/dev/null; then direnv exec "$(root)" gh "$@"; els
 cmd_review_queue() { local me; me=$(ghx api user -q .login 2>/dev/null)
   ghx pr list --state open --json number,title,author,isDraft,reviews,updatedAt --limit 50 2>/dev/null | jq -r --arg me "$me" '.[] | select(.isDraft|not) | select(.author.login != $me) | select([.reviews[]?.author.login] | index($me) | not) | "#\(.number)  \(.author.login)  \(.updatedAt[:10])  \(.title)"'; }
 
-cmd_test_lock() { local f; f="$(gitdir)/orclife-allow-test-edits"
+cmd_test_lock() { local f; f="$(gitdir)/orca-allow-test-edits"
   case "${1:-status}" in on) touch "$f"; echo "test edits allowed in this worktree";; off) rm -f "$f"; echo "test edits locked";; status) [ -f "$f" ] && echo unlocked || echo locked;; *) usage "test-lock on|off|status";; esac; }
 
 # ---- worktree lifecycle
@@ -246,7 +246,7 @@ ports_for() { local n; n=$(echo "$1" | grep -oE '[0-9]+$'); [ -n "$n" ] || retur
 stack_ports() { local f; f="$(wt_dir "$1")/.env.local"; if [ -f "$f" ]; then grep -E '^[A-Z0-9_]+_PORT=' "$f"; else ports_for "$1"; fi; }
 # Runs a project command from config in the worktree, with its ticket, path and ports exported.
 stack_run() { local t="$1" dir="$2" c; c=$(cfg ".$3"); [ -n "$c" ] || return 0
-  (cd "$dir" && set -a && eval "$(stack_ports "$t")" && ORCLIFE_TICKET="$t" ORCLIFE_WORKTREE="$dir" && set +a && bash -c "$c"); }
+  (cd "$dir" && set -a && eval "$(stack_ports "$t")" && ORCA_TICKET="$t" ORCA_WORKTREE="$dir" && set +a && bash -c "$c"); }
 # Untracked local config the main checkout owns; a worktree points at it instead of holding a copy,
 # so editing it once in the main checkout reaches every worktree.
 wt_link() { local main="$1" dir="$2" p
@@ -275,14 +275,14 @@ cmd_worktree() {
         herdr worktree open --cwd "$main" --path "$dir" --label "$t" --no-focus >/dev/null || die "herdr worktree open failed"
       fi
       inherdr && echo "workspace $(wt_ws "$dir")"
-      [ -e "$dir/.orclife" ] || ln -s "$(shared)" "$dir/.orclife"
+      [ -e "$dir/.orca" ] || ln -s "$(shared)" "$dir/.orca"
       wt_link "$main" "$dir"
       for e in $(cfg '.envFiles[]'); do [ -e "$dir/$e" ] || { [ -f "$main/$e" ] && cp "$main/$e" "$dir/$e"; }; done
       local ports; ports=$(ports_for "$t")
       [ -n "$ports" ] && [ ! -e "$dir/.env.local" ] && echo "$ports" > "$dir/.env.local"
       echo "worktree $dir on $branch${ports:+; ports $(echo $(stack_ports "$t"))}"
       if [ $stack = 1 ]; then
-        [ -n "$(cfg '.stackUp')" ] || die "--stack needs stackUp in .orclife/config.json"
+        [ -n "$(cfg '.stackUp')" ] || die "--stack needs stackUp in .orca/config.json"
         stack_run "$t" "$dir" stackUp && echo "stack up" || die "stackUp failed"
         # The stack's data can predate this branch's migrations.
         if [ -z "$(cfg '.migrateCommand')" ]; then echo "note: no migrateCommand; the stack's data may be behind this branch's migrations"
@@ -298,7 +298,7 @@ cmd_worktree() {
         [ "${st:-0}" -gt 0 ] || die "no merged PR for $branch; pass --force to tear down anyway"
       fi
       stack_run "$t" "$dir" stackDown
-      rm -f "$dir/.orclife"; for p in $(cfg '.linkPaths[]'); do [ -L "$dir/$p" ] && rm -f "$dir/$p"; done
+      rm -f "$dir/.orca"; for p in $(cfg '.linkPaths[]'); do [ -L "$dir/$p" ] && rm -f "$dir/$p"; done
       if inherdr; then local ws; ws=$(wt_ws "$dir"); [ -n "$ws" ] && herdr worktree remove --workspace "$ws" --force >/dev/null 2>&1; fi
       [ -d "$dir" ] && git -C "$(root)" worktree remove --force "$dir"
       git -C "$(root)" branch -D "$branch" >/dev/null 2>&1 && echo "local branch $branch deleted"
@@ -320,16 +320,16 @@ cmd_role() {
       echo "$r${a:+ $a}";;
     start)
       need ticket "${1:-}"; need role "${2:-}"; inherdr || die "role start needs herdr"
-      [ -t 0 ] && die "pipe the handoff body on stdin: orclife role start $1 $2 <<'EOF' ... EOF"
+      [ -t 0 ] && die "pipe the handoff body on stdin: orca-lc role start $1 $2 <<'EOF' ... EOF"
       local body; body=$(cat); [ -n "$body" ] || die "empty handoff body"
       local t r dir ws name; t=$(echo "$1" | tr 'a-z' 'A-Z'); r="$2"; dir=$(wt_dir "$t")
-      [ -d "$dir" ] || die "no worktree at $dir (orclife worktree up $t)"
-      ws=$(wt_ws "$dir"); [ -n "$ws" ] || die "no herdr workspace for $dir (orclife worktree up $t)"
+      [ -d "$dir" ] || die "no worktree at $dir (orca-lc worktree up $t)"
+      ws=$(wt_ws "$dir"); [ -n "$ws" ] || die "no herdr workspace for $dir (orca-lc worktree up $t)"
       name="$(echo "${t//-/}" | tr 'A-Z' 'a-z')-$r"
       # Idempotent: a rerun after answering a startup prompt skips to the handoff and first prompt.
       local ag; ag=$(herdr agent list 2>/dev/null | jq -c --arg n "$name" '[.result.agents[] | select((.agent_name // .name)==$n)][0] // empty')
       if [ -z "$ag" ]; then
-        local pane; pane=$(herdr tab create --workspace "$ws" --cwd "$dir" --label "$r" --env "ORCLIFE_ROLE=$r" --no-focus | jq -r '.result.root_pane.pane_id // empty')
+        local pane; pane=$(herdr tab create --workspace "$ws" --cwd "$dir" --label "$r" --env "ORCA_ROLE=$r" --no-focus | jq -r '.result.root_pane.pane_id // empty')
         [ -n "$pane" ] || die "herdr tab create returned no pane"
         if ! herdr agent start "$name" --kind claude --pane "$pane" --timeout 60000 >/dev/null 2>&1; then
           die "$name did not reach its prompt in pane $pane; a startup prompt (folder trust) is likely waiting. Answer it in tab '$r', then rerun this command"
@@ -338,19 +338,19 @@ cmd_role() {
       [ "$(herdr agent get "$name" 2>/dev/null | jq -r '.result.agent.agent_status // .result.agent_status')" = blocked ] && die "$name is blocked at a prompt; answer it in tab '$r', then rerun this command"
       local f; f=$(cmd_handoff write "$t" "$r"); printf '%s\n' "$body" >> "$f"
       case " propose apply review " in *" $r "*) cmd_role owner "$t" --set "$r" >/dev/null;; esac
-      cmd_notify "$name" "You are the $r session for $t. Run: orclife handoff read $t $r, then work it. Report commits and decisions to the orchestrator (orclife notify $t --role orchestrator)."
+      cmd_notify "$name" "You are the $r session for $t. Run: orca-lc handoff read $t $r, then work it. Report commits and decisions to the orchestrator (orca-lc notify $t --role orchestrator)."
       echo "handoff $f";;
     *) usage "role start|owner";;
   esac
 }
 
 cmd_context() {
-  echo "orclife: project=$(cfg '.project') session=$(me id | cut -c1-8) name=$(me name) ticket=$(me ticket) role=$(me role) gate=$(cmd_gate_fresh && echo fresh || echo stale) test-edits=$(cmd_test_lock status)"
+  echo "orca-lc: project=$(cfg '.project') session=$(me id | cut -c1-8) name=$(me name) ticket=$(me ticket) role=$(me role) gate=$(cmd_gate_fresh && echo fresh || echo stale) test-edits=$(cmd_test_lock status)"
   local p; p=$(cmd_peers); [ -n "$p" ] && { echo "peers (this repo, all worktrees; first column is the notify target):"; echo "$p"; }
-  local t; t=$(me ticket); [ -n "$t" ] && { local h; h=$(ls "$(shared)/handoffs/$t"/*.md 2>/dev/null | grep -v archive | sort | tail -3); [ -n "$h" ] && { echo "unconsumed handoffs for $t (orclife handoff read $t <role>):"; echo "$h"; }; }
+  local t; t=$(me ticket); [ -n "$t" ] && { local h; h=$(ls "$(shared)/handoffs/$t"/*.md 2>/dev/null | grep -v archive | sort | tail -3); [ -n "$h" ] && { echo "unconsumed handoffs for $t (orca-lc handoff read $t <role>):"; echo "$h"; }; }
   cmd_inbox read
-  local u; u=$(cmd_triage | wc -l); [ "$u" -gt 0 ] && echo "discoveries awaiting enforcement: $u (orclife triage)"
-  local ec; ec=$(cfg '.envCommand'); if [ -n "$ec" ]; then local kv; kv=$(bash -c "$ec" 2>/dev/null); [ -n "$kv" ] && echo "gate env: $kv" || echo "WARNING: no stack for this worktree; gate tests will fail (orclife worktree up <ticket> --stack)"; fi
+  local u; u=$(cmd_triage | wc -l); [ "$u" -gt 0 ] && echo "discoveries awaiting enforcement: $u (orca-lc triage)"
+  local ec; ec=$(cfg '.envCommand'); if [ -n "$ec" ]; then local kv; kv=$(bash -c "$ec" 2>/dev/null); [ -n "$kv" ] && echo "gate env: $kv" || echo "WARNING: no stack for this worktree; gate tests will fail (orca-lc worktree up <ticket> --stack)"; fi
   [ -d .codegraph ] && has codegraph && codegraph status 2>/dev/null | grep -A3 'Pending sync' | head -4
 }
 

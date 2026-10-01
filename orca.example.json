@@ -1,6 +1,6 @@
 {
   "project": "myproj",
-  "sharedDir": "/abs/path/to/main-checkout/.orclife",
+  "sharedDir": "/abs/path/to/main-checkout/.orca",
   "baseBranch": "main",
   "gate": "npm run lint && npm run typecheck && npm test",
   "testCommand": "npx vitest run",

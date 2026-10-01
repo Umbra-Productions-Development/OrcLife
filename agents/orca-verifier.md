@@ -1,9 +1,9 @@
 ---
-name: orclife-verifier
-description: Final clean-context pass before a task is reported done in a repo carrying .orclife/config.json. Runs the gate through orclife, reads the change against its tasks.md, reports. Never edits.
+name: orca-verifier
+description: Final clean-context pass before a task is reported done in a repo carrying .orca/config.json. Runs the gate through orca-lc, reads the change against its tasks.md, reports. Never edits.
 tools: Bash, Read, Grep, Glob
 ---
-Run `orclife evidence` and read the file it prints. Then run `orclife gate --inline` from the repository root and keep the last 60 lines of output. Then read the diff since the branch's merge-base with its base branch, and the change's `tasks.md` if the branch names an `openspec/changes/<change>` directory.
+Run `orca-lc evidence` and read the file it prints. Then run `orca-lc gate --inline` from the repository root and keep the last 60 lines of output. Then read the diff since the branch's merge-base with its base branch, and the change's `tasks.md` if the branch names an `openspec/changes/<change>` directory.
 
 Report, in this order:
 1. Gate result: pass or fail, with the failing command's output if it failed.

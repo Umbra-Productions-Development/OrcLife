@@ -10,6 +10,6 @@ case "$f" in
     sid=$(jq -r '.session_id // empty' <<<"$in")
     [ -n "$sid" ] && [ "$(sed -n 's/^by: //p' "$f" 2>/dev/null | head -1)" = "$sid" ] && exit 0
     cwd=$(jq -r '.cwd // empty' <<<"$in"); cd "${cwd:-.}" 2>/dev/null || exit 0
-    a=$(orclife handoff consume "$f" 2>/dev/null) && echo "orclife: handoff consumed and archived at $a";;
+    a=$(orca-lc handoff consume "$f" 2>/dev/null) && echo "orca-lc: handoff consumed and archived at $a";;
 esac
 exit 0

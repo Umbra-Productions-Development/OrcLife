@@ -1,4 +1,4 @@
-# OrcLife — Project Plan
+# Orca — Project Plan
 
 ## Goal
 
@@ -6,7 +6,7 @@ A software development lifecycle for Claude Code that any repository can adopt b
 
 ## Non-goals
 
-- **No project-, employer- or client-specific content, ever.** No names, tickets, paths, hostnames, channel ids, schemas, sample data or commit messages drawn from a real project. Anything project-specific belongs in the adopting repository's `.orclife/config.json`. This rule has no exceptions and applies to code, docs, issues, PRs, commit messages and branch names.
+- **No project-, employer- or client-specific content, ever.** No names, tickets, paths, hostnames, channel ids, schemas, sample data or commit messages drawn from a real project. Anything project-specific belongs in the adopting repository's `.orca/config.json`. This rule has no exceptions and applies to code, docs, issues, PRs, commit messages and branch names.
 - Not a hosted service, not a framework for other agent runtimes.
 - No feature lands for a single adopter's convenience when a config key would do.
 
