@@ -29,6 +29,8 @@ Ownership moves forward only: propose, then apply, then review until merge. Only
 
 `orca-lc help` lists every command.
 
+[docs/daily-use.md](docs/daily-use.md) walks one ticket through the whole lifecycle.
+
 ## Requirements
 
 Required: Claude Code, git, bash, [jq](https://jqlang.org), [gh](https://cli.github.com), herdr.
