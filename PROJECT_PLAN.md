@@ -1,4 +1,4 @@
-# OrcLife — Project Plan
+# Orca — Project Plan
 
 ## Goal
 
@@ -6,7 +6,7 @@ A software development lifecycle for Claude Code that any repository can adopt b
 
 ## Non-goals
 
-- **No project-, employer- or client-specific content, ever.** No names, tickets, paths, hostnames, channel ids, schemas, sample data or commit messages drawn from a real project. Anything project-specific belongs in the adopting repository's `.local/orclife.json`. This rule has no exceptions and applies to code, docs, issues, PRs, commit messages and branch names.
+- **No project-, employer- or client-specific content, ever.** No names, tickets, paths, hostnames, channel ids, schemas, sample data or commit messages drawn from a real project. Anything project-specific belongs in the adopting repository's `.orca/config.json`. This rule has no exceptions and applies to code, docs, issues, PRs, commit messages and branch names.
 - Not a hosted service, not a framework for other agent runtimes.
 - No feature lands for a single adopter's convenience when a config key would do.
 
@@ -34,7 +34,7 @@ Both branches refuse direct pushes, force pushes and deletion, for admins too. E
 1. Open an issue describing the problem before larger changes.
 2. Branch from `main`; maintainers branch in this repository, everyone else from a fork.
 3. Open a PR against `main`. Keep it to one change.
-4. Before pushing, run the leak check: no content from a real project (see Non-goals).
+4. Turn on the leak check (`git config core.hooksPath .githooks`, see the README) and keep a denylist of the projects you work on. No content from a real project (see Non-goals).
 5. A maintainer reviews. Pull requests from first-time and outside contributors need approval before CI runs.
 
 Issues and planning live in this repository's GitHub Issues and Projects.
